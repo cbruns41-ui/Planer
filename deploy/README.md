@@ -4,7 +4,7 @@
 
 Das vorgesehene Repository ist [cbruns41-ui/Planer](https://github.com/cbruns41-ui/Planer). GitHub Actions prüft Änderungen auf `main` und Pull Requests: Tests, Deployment-Syntax, Compose-Konfiguration, Docker-Build, Containerstart und Datenbanksicherung mit schreibgeschütztem Quelldaten-Volume.
 
-Die Veröffentlichung auf Hetzner wird nach erfolgreicher Prüfung ausgeführt, sobald die Repository-Variable `DEPLOY_ENABLED=true` gesetzt ist. Bis dahin werden nur Prüfungen ausgeführt. GitHub erhält weder die Produktivdatenbank noch `.env.production`. Der Quellcode wird als Git-Archiv über eine SSH-Verbindung mit geprüftem Hostschlüssel übertragen.
+Hetzner ist auf Wunsch vorerst zurückgestellt. Es gibt keinen aktiven Veröffentlichungsworkflow in `.github/workflows`; nur App-Prüfungen laufen automatisch. Die Vorlage `deploy/github-workflow.example.yml` wird erst bei einer späteren Einrichtung in den Workflow-Ordner übernommen. Zusätzlich muss dann `DEPLOY_ENABLED=true` gesetzt werden. GitHub erhält weder die Produktivdatenbank noch `.env.production`. Die Vorlage würde den Quellcode als Git-Archiv über eine SSH-Verbindung mit geprüftem Hostschlüssel übertragen.
 
 Unter **Settings → Secrets and variables → Actions** diese Secrets hinterlegen:
 
@@ -135,4 +135,4 @@ Der interne Gesundheitscheck ist `/api/health`. Die Anwendung läuft im Containe
 
 ## Stand der Prüfung
 
-API, Einkaufsliste, gemeinsame Daten, Neustart-Persistenz, Sicherungsrotation, Datenintegrität, Wiederherstellung und Konfigurationsgenerator sind automatisiert geprüft. Die Ansichten werden mit Chrome auf Handy- und Tabletgrößen geprüft. Ein Docker-Start oder eine echte Hetzner-Bereitstellung konnte in der aktuellen Windows-Umgebung ohne Docker und ohne Serverzugang nicht durchgeführt werden. Deshalb auf dem Zielserver die oben aufgeführten Compose- und Gesundheitschecks ausführen.
+API, Einkaufsliste, gemeinsame Daten, Neustart-Persistenz, Sicherungsrotation, Datenintegrität, Wiederherstellung und Konfigurationsgenerator sind automatisiert geprüft. Die Ansichten wurden mit Chrome auf Handy- und Tabletgrößen geprüft. GitHub Actions hat zusätzlich Compose validiert, das Produktivimage gebaut, den Container gestartet und eine Sicherung gegen das schreibgeschützte Daten-Volume erfolgreich ausgeführt. Ergebnisse stehen unter [GitHub Actions](https://github.com/cbruns41-ui/Planer/actions). Eine tatsächliche Hetzner-Bereitstellung ist vorerst zurückgestellt.

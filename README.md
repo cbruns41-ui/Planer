@@ -2,6 +2,8 @@
 
 Gemeinsamer Kalender, Essensplan und Einkaufsliste als installierbare Web-App für Android, iPhone, iPad und Desktop. Node.js 24, SQLite und Nodemailer für SMTP-E-Mails.
 
+Quellcode: [cbruns41-ui/Planer](https://github.com/cbruns41-ui/Planer). [GitHub Actions](https://github.com/cbruns41-ui/Planer/actions) prüft Commits und Pull Requests automatisch, einschließlich Tests, Docker-Build, Containerstart und Datenbanksicherung. Hetzner ist vorerst zurückgestellt; es gibt keinen aktiven Veröffentlichungsworkflow. Die vorbereiteten Dateien bleiben für später erhalten.
+
 ## Starten und anmelden
 
 Für den Hetzner-Betrieb gibt es eine vollständige [Anleitung mit Docker, HTTPS, zentralen Daten, Sicherung und Wiederherstellung](deploy/README.md). Die Konfiguration wird über `scripts/configure-production.mjs` erstellt. Ohne Serverzugang wird nichts automatisch veröffentlicht.

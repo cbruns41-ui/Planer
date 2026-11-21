@@ -23,8 +23,9 @@ if(command==='inspect') {
  if(!/^[a-zA-Z0-9_.-]{1,100}$/.test(name))throw new Error('Ungültiger Repository-Name.');
  const repo=await api('/user/repos',{method:'POST',body:JSON.stringify({name,private:true,auto_init:false,description:'Gemeinsame Tablet-App: Kalender, Personen, Geburtstage, Essensplan und Einkaufsliste. Hetzner-Deployment mit Docker.'})});
  console.log(JSON.stringify({name:repo.name,url:repo.html_url,remote:repo.clone_url,private:repo.private,login:user.login,id:user.id}));
-}else if(command==='status') {
+}else if(command==='status' || command==='jobs') {
  if(!/^[a-zA-Z0-9_.-]{1,100}$/.test(name))throw new Error('Ungültiger Repository-Name.');
  const runs=await api(`/repos/${user.login}/${name}/actions/runs?per_page=5`);
- console.log(JSON.stringify(runs.workflow_runs.map(r=>({name:r.name,status:r.status,conclusion:r.conclusion,url:r.html_url,sha:r.head_sha}))));
-}else throw new Error('Erlaubt: inspect, repo NAME, create NAME, status NAME');
+ if(command==='status')console.log(JSON.stringify(runs.workflow_runs.map(r=>({name:r.name,status:r.status,conclusion:r.conclusion,url:r.html_url,sha:r.head_sha}))));
+ else if(runs.workflow_runs[0]){const result=await api(`/repos/${user.login}/${name}/actions/runs/${runs.workflow_runs[0].id}/jobs`);console.log(JSON.stringify(result.jobs.map(j=>({id:j.id,name:j.name,status:j.status,conclusion:j.conclusion,steps:j.steps.map(s=>({name:s.name,status:s.status,conclusion:s.conclusion}))}))));}
+}else throw new Error('Erlaubt: inspect, repo NAME, create NAME, status NAME, jobs NAME');

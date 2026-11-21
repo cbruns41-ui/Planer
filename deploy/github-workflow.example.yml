@@ -1,4 +1,4 @@
-name: Check app and deploy to Hetzner
+name: Deploy to Hetzner (template for later activation)
 on:
   push:
     branches: [main]
