@@ -1,0 +1,18 @@
+{
+  "name": "miteinander-kalender",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gemeinsamer Kalender für Tablet und Handy",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "dev": "node --env-file-if-exists=.env --watch server.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "nodemailer": "^10.6.0"
+  }
+}

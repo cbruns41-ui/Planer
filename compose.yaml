@@ -1,0 +1,92 @@
+name: miteinander
+services:
+  app:
+    build: .
+    image: miteinander:local
+    restart: unless-stopped
+    init: true
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3100"
+      DATA_DIR: /app/data
+      BACKUP_DIR: /app/backups
+      PUBLIC_ORIGIN: https://${APP_DOMAIN:?APP_DOMAIN fehlt in .env.production}
+      COOKIE_SECURE: "true"
+      TRUST_PROXY: "true"
+    volumes:
+      - app_data:/app/data
+      - app_backups:/app/backups
+    expose:
+      - "3100"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN fehlt}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL fehlt}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  backup:
+    image: miteinander:local
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    command: ["node", "scripts/backup.mjs", "--watch"]
+    environment:
+      DATA_DIR: /app/data
+      BACKUP_DIR: /app/backups
+      BACKUP_KEEP: "14"
+      BACKUP_INTERVAL_HOURS: "24"
+    volumes:
+      - app_data:/app/data:ro
+      - app_backups:/app/backups
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  app_data:
+  app_backups:
+  caddy_data:
+  caddy_config:

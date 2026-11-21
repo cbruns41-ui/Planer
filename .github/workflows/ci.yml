@@ -1,0 +1,54 @@
+name: Check app
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Validate deployment script
+        run: bash -n deploy/github-release.sh
+      - name: Validate Docker Compose
+        run: |
+          cp .env.production.example .env.production
+          docker compose --env-file .env.production config --quiet
+      - name: Build production image
+        run: docker build --tag miteinander:ci .
+      - name: Check container and backup against a read-only database mount
+        shell: bash
+        run: |
+          set -euo pipefail
+          bootstrap="$(openssl rand -hex 24)"
+          docker run -d --name miteinander-ci --read-only --tmpfs /tmp \
+            -e SEED_PASSWORD="$bootstrap" \
+            -v miteinander-ci-data:/app/data -v miteinander-ci-backups:/app/backups miteinander:ci
+          healthy=false
+          for attempt in $(seq 1 40); do
+            if docker exec miteinander-ci node -e "fetch('http://127.0.0.1:3100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              healthy=true
+              break
+            fi
+            sleep 1
+          done
+          "$healthy"
+          docker run --rm --read-only \
+            -v miteinander-ci-data:/app/data:ro -v miteinander-ci-backups:/app/backups \
+            miteinander:ci node scripts/backup.mjs
+      - name: Remove temporary CI containers and volumes
+        if: always()
+        run: |
+          docker rm -f miteinander-ci || true
+          docker volume rm miteinander-ci-data miteinander-ci-backups || true

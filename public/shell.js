@@ -1,0 +1,16 @@
+export function createShell({state,icon,esc,avatar,statusLabel}) {
+ const pages=[['home','home','Startseite'],['calendar','calendar','Kalender'],['people','users','Personen & Termine'],['birthdays','gift','Geburtstage'],['meals','meal','Essensplan'],['shopping','cart','Einkaufsliste'],['weather','sun','Wetter']];
+ return function shell(content) {
+  const current=pages.find(([p])=>p===state.page)?.[2] || 'Einstellungen';
+  return `<div class="layout ${state.menuOpen?'menu-open':'menu-closed'} ${state.page==='calendar'?'calendar-focus':''}" data-page="${state.page}">
+  <aside id="app-sidebar" class="sidebar" aria-label="Seitenmenü" ${state.menuOpen?'':'inert'}><a href="#home" class="brand" aria-label="Miteinander Startseite"><span class="brand-icon">${icon('calendar')}</span><span>miteinander</span></a>
+  <div class="space-label">${esc(state.space.name)}</div><nav aria-label="Hauptnavigation">${pages.map(([page,i,label])=>`<a href="#${page}" class="nav-item ${state.page===page?'active':''}" ${state.page===page?'aria-current="page"':''}>${icon(i)}<span>${label}</span></a>`).join('')}</nav>
+  <div class="sidebar-people"><div class="space-label label-row">EURE PERSONEN<button class="tiny-button" data-action="add-person" aria-label="Person hinzufügen">${icon('plus')}</button></div>${state.people.slice(0,5).map(p=>`<button class="person-nav" data-action="view-person" data-id="${esc(p.id)}">${avatar(p,'small')}<span>${esc(p.name)}</span></button>`).join('')}</div>
+  <div class="sidebar-bottom"><a href="#settings" class="nav-item ${state.page==='settings'?'active':''}">${icon('settings')}<span>Einstellungen</span></a><button class="nav-item" data-action="logout">${icon('logout')}<span>Abmelden</span></button></div></aside>
+  <button class="menu-scrim" data-action="menu-close" aria-label="Seitenmenü schließen" ${state.menuOpen?'':'hidden'}></button>
+  <button class="edge-toggle" data-action="menu-toggle" aria-label="${state.menuOpen?'Seitenmenü einklappen':'Seitenmenü ausklappen'}" aria-expanded="${state.menuOpen}" aria-controls="app-sidebar">${icon('chevron')}</button>
+  <div class="main-wrap" ${state.menuOpen && innerWidth<1200?'inert':''}>${state.page==='calendar'?'':`<header class="topbar"><a href="#home" class="app-wordmark">${icon('calendar')}<span>miteinander</span></a><div class="breadcrumb">${esc(state.space.name)} <span>/</span> <strong>${current}</strong></div><div class="topbar-actions"><span class="connection"><span class="status-dot ${!state.online || state.syncError?'warning':''}"></span>${statusLabel()}</span><button class="icon-button global-search" data-action="search" aria-label="Termine suchen">${icon('search')}</button><button class="account-button" data-action="settings" aria-label="Konto und Einstellungen">${avatar({name:state.user?.name,color:'sage'},'small')}</button></div></header>`}
+  <main id="main" class="main-content">${content}</main></div>
+  ${state.page==='calendar'?'':`<nav class="mobile-nav" aria-label="Mobile Navigation">${[['home','home','Start'],['calendar','calendar','Kalender'],['shopping','cart','Einkaufen'],['people','users','Personen'],['settings','settings','Mehr']].map(([p,i,label])=>`<a href="#${p}" class="${state.page===p?'active':''}" ${state.page===p?'aria-current="page"':''}>${icon(i)}<span>${label}</span></a>`).join('')}</nav>`}</div>`;
+ };
+}
