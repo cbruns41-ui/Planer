@@ -44,6 +44,22 @@ test('Bruns: Nutzername, E-Mail-Einstellungen, Passwortwechsel und Neustart',asy
  assert.equal((await request('/api/auth/login','POST',{identifier:'bruns@example.test',password:'NeuesTestpasswort'})).status,200);
 });
 
+test('Anzeigename bleibt gespeichert, ändert nur das eigene Konto und erhält den Login',async t=>{
+ const {request,restart}=await launch(t);
+ const owner=await request('/api/auth/login','POST',{identifier:'Bruns',password:'Test1234'});
+ const guest=await request('/api/auth/register','POST',{name:'Gast',email:'profile-guest@example.test',password:'GemeinsamesPasswort',invite:owner.data.space.invite});
+ assert.equal((await request('/api/account/profile','PUT',{name:'Christian'})).status,401);
+ assert.equal((await request('/api/account/profile','PUT',{name:'   '},owner.cookie)).status,400);
+ assert.equal((await request('/api/account/profile','PUT',{name:'A'.repeat(61)},owner.cookie)).status,400);
+ const saved=await request('/api/account/profile','PUT',{name:' Christian ',id:guest.data.user.id,username:'Christian'},owner.cookie);
+ assert.equal(saved.status,200);assert.equal(saved.data.user.name,'Christian');assert.equal(saved.data.user.username,'Bruns');
+ assert.equal((await request('/api/me','GET',undefined,guest.cookie)).data.user.name,'Gast');
+ assert.equal((await request('/api/calendar','GET',undefined,owner.cookie)).data.people[0].name,'Bruns');
+ await restart();
+ const login=await request('/api/auth/login','POST',{identifier:'Bruns',password:'Test1234'});
+ assert.equal(login.status,200);assert.equal(login.data.user.name,'Christian');
+});
+
 test('Essensplan wird gespeichert und nach gemeinsamem Kalender getrennt',async t=>{
  const {request}=await launch(t);
  const owner=await request('/api/auth/login','POST',{identifier:'Bruns',password:'Test1234'});

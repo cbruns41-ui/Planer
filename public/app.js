@@ -31,6 +31,7 @@ const paths = {
  check:'<path d="m5 12 4 4L19 6"/>', close:'<path d="m6 6 12 12M6 18 18 6"/>', leaf:'<path d="M20 3C8 2 2 7 5 15s16 7 15-12ZM5 20 16 9"/>',
  heart:'<path d="m12 21-8-8C-2 6 7-1 12 6c5-7 14 0 8 7Z"/>', logout:'<path d="M10 3H4v18h6m4-15 6 6-6 6m-7-6h13"/>',
  download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>', shield:'<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-5"/>',
+ edit:'<path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15l-1 6Z"/>',
  list:'<path d="M9 6h12M9 12h12M9 18h12M3 6h1m-1 6h1m-1 6h1"/>', wind:'<path d="M3 8h12a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h6a3 3 0 1 1-3 3"/>',
 };
 const icon = (name, cls='')=>`<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.calendar}</svg>`;
@@ -40,8 +41,7 @@ const state = {page:'home',demo:true,user:null,people:[],events:[],space:{name:'
 Object.assign(state,{authReady:false,authView:'login',accountLink:null,mailConfigured:false,meals:[],mealWeek:parseDate(today)});
 Object.assign(state,{birthdays:[],personOverviewId:null,personPeriod:'upcoming',birthdaySearch:''});
 Object.assign(state,{menuOpen:false,shoppingItems:[],shoppingPeriod:'open'});
-try{state.menuOpen=localStorage.getItem('miteinander-menu-open')==='true' && innerWidth>=1200;}catch{}
-if(matchMedia('(max-width:599px)').matches)state.view='list';
+try{state.menuOpen=localStorage.getItem('miteinander-menu-open')!=='false';}catch{state.menuOpen=true;}
 state.mealWeek.setDate(state.mealWeek.getDate()-(state.mealWeek.getDay()+6)%7);
 let installPrompt, toastTimer;
 let accountEpoch=0;
@@ -104,7 +104,14 @@ function render(force=false) {
  if(!force && state.user && (app.querySelector('form[data-dirty="true"]') || (app.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)))) return;
  if(!state.authReady) { app.innerHTML='<main class="boot-screen"><img src="/icon.svg" alt=""><p>Dein Zuhause wird geöffnet …</p></main>';return; }
  if(!state.user || state.accountLink) { app.innerHTML=screens.landingPage();document.title='Anmelden · Miteinander';return; }
+ const oldPlanner=$('.planner-scroll',app),scroll=oldPlanner?{top:oldPlanner.scrollTop,left:oldPlanner.scrollLeft,month:oldPlanner.dataset.month}:null;
  app.innerHTML=shell(({home:homePage,calendar:calendarPage,people:screens.peoplePage,birthdays:screens.birthdaysPage,meals:screens.mealsPage,shopping:screens.shoppingPage,weather:weatherPage,settings:settingsPage})[state.page]()); document.title=`${({home:'Startseite',calendar:'Kalender',people:'Personen & Termine',birthdays:'Geburtstage',meals:'Essensplan',shopping:'Einkaufsliste',weather:'Wetter',settings:'Einstellungen'})[state.page]} · Miteinander`;
+ const planner=$('.planner-scroll',app);
+ if(planner){planner.dataset.month=dateKey(state.month).slice(0,7);if(scroll && scroll.month===planner.dataset.month){planner.scrollTop=scroll.top;planner.scrollLeft=scroll.left;}else scrollCalendarTo(state.selected);}
+}
+function scrollCalendarTo(date) {
+ const planner=$('.planner-scroll'),row=$('.planner-row[data-date="'+date+'"]',planner || app);if(!planner || !row)return;
+ planner.scrollTop+=row.getBoundingClientRect().top-planner.getBoundingClientRect().top-$('.planner-header',planner).getBoundingClientRect().height-1;
 }
 function clearAccount() {
  accountEpoch++;state.user=null;state.demo=true;state.events=[];state.people=[];state.meals=[];state.shoppingItems=[];state.birthdays=[];state.personOverviewId=null;state.birthdaySearch='';state.mailConfigured=false;state.authView='login';state.accountLink=null;state.syncError=false;state.filter='all';state.search='';state.page='home';modal.close();
@@ -140,7 +147,7 @@ async function loadWeather(force=false) {
  finally {state.weatherLoading=false;render();if(locationKey!==`${state.location.latitude},${state.location.longitude}` && state.user)loadWeather(true);}
 }
 function navigate(page) {
- state.page=['home','calendar','people','birthdays','meals','shopping','weather','settings'].includes(page)?page:'home';if(state.page==='calendar' || innerWidth<1200)state.menuOpen=false;render(true);
+ state.page=['home','calendar','people','birthdays','meals','shopping','weather','settings'].includes(page)?page:'home';render(true);
  if(!state.user)return;
  if(state.page==='calendar') loadHolidays();
  if(state.page==='weather') loadWeather();
@@ -152,9 +159,10 @@ modal.addEventListener('click',e=>{if(e.target===modal){const rect=modal.getBoun
 function formSubmit(form, callback) {
  form.addEventListener('submit',async e=>{e.preventDefault();const button=$('[type="submit"]',form); const error=$('.form-error',form);button.disabled=true; if(error)error.textContent='';try{await callback(Object.fromEntries(new FormData(form)));}catch(err){if(error)error.textContent=err.message;else toast(err.message);}finally{button.disabled=false;}});
 }
-function eventModal(id) {
+function eventModal(id,defaults={}) {
  const event=id?state.events.find(e=>e.id===id):{date:state.page==='calendar'?state.selected:today,category:'Alltag',personId:state.page==='people'?(state.personOverviewId==='together'?'':state.personOverviewId || ''):state.filter!=='all' && state.filter!=='together'?state.filter:''};
  if(!event) return;
+ if(!id)Object.assign(event,defaults);
  openModal(`<div class="eyebrow">PLATZ FÜR EURE PLÄNE</div><h2>${id?'Termin bearbeiten':'Ein neuer Termin'}</h2><p class="modal-subtitle">Damit alle wissen, was ansteht.</p><form id="event-form"><label>Was habt ihr vor?<input name="title" placeholder="z. B. Gemeinsam essen gehen" maxlength="120" value="${esc(event.title || '')}" required autofocus></label><div class="form-row"><label>Datum<input name="date" type="date" min="1900-01-01" max="2200-12-31" value="${esc(event.date)}" required></label><label>Für wen?<select name="personId"><option value="">Alle zusammen</option>${state.people.map(p=>`<option value="${esc(p.id)}" ${event.personId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label></div><div class="form-row time-fields"><label>Von <span class="optional">optional</span><input name="time" type="time" value="${esc(event.time || '')}"></label><label>Bis <span class="optional">optional</span><input name="endTime" type="time" value="${esc(event.endTime || '')}"></label></div><p class="field-help time-help">Ohne Uhrzeit erscheint der Termin als ganztägig.</p><div class="form-row"><label>Kategorie<select name="category">${CATEGORIES.map(c=>`<option ${event.category===c?'selected':''}>${c}</option>`).join('')}</select></label><label>Ort <span class="optional">optional</span><input name="location" maxlength="180" placeholder="Wo findet es statt?" value="${esc(event.location || '')}"></label></div><label>Notiz <span class="optional">optional</span><textarea name="note" rows="2" maxlength="2000" placeholder="Was sollte noch jemand wissen?">${esc(event.note || '')}</textarea></label><p class="form-error" role="alert"></p><div class="modal-actions">${id?`<button type="button" class="text-button danger" id="delete-event">Termin löschen</button>`:'<span></span>'}<button class="button primary" type="submit">${icon('check')} Termin speichern</button></div></form>`);
  formSubmit($('#event-form',modal),async data=>{
   if(data.endTime && (!data.time || data.endTime<=data.time)) throw new Error('Bitte wähle ein Ende nach dem Beginn.');
@@ -208,10 +216,8 @@ function shoppingModal(id) {
 function setMenu(open) {
  state.menuOpen=open;try{localStorage.setItem('miteinander-menu-open',String(open));}catch{}
  const layout=$('.layout');if(!layout)return;
- layout.classList.toggle('menu-open',open);layout.classList.toggle('menu-closed',!open);$('#app-sidebar').toggleAttribute('inert',!open);$('.menu-scrim').hidden=!open;
+ layout.classList.toggle('menu-open',open);layout.classList.toggle('menu-closed',!open);$('#app-sidebar').toggleAttribute('inert',!open);
  const button=$('.edge-toggle');button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',open?'Seitenmenü einklappen':'Seitenmenü ausklappen');
- $('.main-wrap').toggleAttribute('inert',open && innerWidth<1200);
- if(open)$('#app-sidebar .nav-item.active')?.focus();
 }
 function mealModal(date,slot) {
  const meal=state.meals.find(m=>m.date===date && m.slot===slot);
@@ -237,7 +243,6 @@ async function handleAction(e) {
  try {
   switch(action) {
    case 'menu-toggle':setMenu(!state.menuOpen);break;
-   case 'menu-close':setMenu(false);break;
    case 'calendar-options':calendarOptionsModal();break;
    case 'calendar-reset':state.filter='all';state.search='';state.showHolidays=true;render(true);break;
    case 'fullscreen':try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{toast('Vollbild ist in diesem Browser gerade nicht verfügbar.');}break;
@@ -265,16 +270,15 @@ async function handleAction(e) {
    case 'weather': location.hash='weather';navigate('weather');break;
    case 'settings': location.hash='settings';navigate('settings');break;
    case 'new-event':eventModal();break;
+   case 'new-person-event':state.selected=target.dataset.date;eventModal(undefined,{date:target.dataset.date,personId:target.dataset.person==='together'?'':target.dataset.person});break;
    case 'edit-event':eventModal(id);break;
    case 'add-person':personModal();break;
    case 'auth':clearAccount();render(true);break;
    case 'filter':state.filter=id;render(true);break;
    case 'person-filter':state.personOverviewId=id;location.hash='people';navigate('people');break;
    case 'prev-month':case 'next-month':state.month=new Date(state.month.getFullYear(),state.month.getMonth()+(action==='prev-month'?-1:1),1,12);state.selected=dateKey(state.month);render(true);loadHolidays();break;
-   case 'today':state.month=parseDate(today);state.selected=today;render(true);loadHolidays();break;
+   case 'today':state.month=parseDate(today);state.selected=today;render(true);scrollCalendarTo(today);loadHolidays();break;
    case 'select-day':state.selected=target.dataset.date;render(true);calendarDayModal();break;
-   case 'month-view':state.view='month';render(true);break;
-   case 'list-view':state.view='list';render(true);break;
    case 'search':location.hash='calendar';navigate('calendar');calendarOptionsModal();break;
    case 'holiday-detail':{const h=allHolidays().find(h=>h.id===id);if(h)openModal(`<div class="eyebrow">FEIERTAG · ${esc(STATES[state.space.state])}</div><h2>${esc(h.title)}</h2><p>${fmt(h.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>${h.note?`<div class="holiday-notice">${esc(h.note)}</div>`:''}<p class="field-help">Regional eingeschränkte Feiertage gelten nur in den genannten Orten oder Gemeinden. Bitte beachte diese Hinweise.</p><p class="data-attribution">Quelle: <a href="https://feiertage-api.de/" target="_blank" rel="noreferrer">Feiertage Webservice</a></p>`,'compact-modal');break;}
    case 'retry-holidays':loadHolidays(undefined,true);break;
@@ -287,10 +291,11 @@ async function handleAction(e) {
  }catch(error){toast(error.message);}
 }
 app.addEventListener('click',handleAction);modal.addEventListener('click',handleAction);
-app.addEventListener('input',e=>{if(['email-form','space-form'].includes(e.target.form?.id))e.target.form.dataset.dirty='true';if(['event-search','birthday-search'].includes(e.target.id)){const pos=e.target.selectionStart,id=e.target.id;state[id==='event-search'?'search':'birthdaySearch']=e.target.value;render(true);const input=$('#'+id);input.focus();try{input.setSelectionRange(pos,pos);}catch{}}});
-app.addEventListener('change',e=>{if(['email-form','space-form'].includes(e.target.form?.id))e.target.form.dataset.dirty='true';if(e.target.id==='show-holidays'){state.showHolidays=e.target.checked;render(true);}});
+app.addEventListener('input',e=>{if(['profile-form','email-form','space-form'].includes(e.target.form?.id))e.target.form.dataset.dirty='true';if(['event-search','birthday-search'].includes(e.target.id)){const pos=e.target.selectionStart,id=e.target.id;state[id==='event-search'?'search':'birthdaySearch']=e.target.value;render(true);const input=$('#'+id);input.focus();try{input.setSelectionRange(pos,pos);}catch{}}});
+app.addEventListener('change',e=>{if(['profile-form','email-form','space-form'].includes(e.target.form?.id))e.target.form.dataset.dirty='true';if(e.target.id==='show-holidays'){state.showHolidays=e.target.checked;render(true);}});
 app.addEventListener('submit',async e=>{
  const handlers={
+  'profile-form':async data=>{const result=await api('/api/account/profile',{method:'PUT',body:JSON.stringify(data)});state.user=result.user;render(true);toast('Dein Anzeigename wurde gespeichert.');},
   'shopping-add-form':async data=>{await api('/api/shopping',{method:'POST',body:JSON.stringify(data)});await loadShopping();state.shoppingPeriod='open';render(true);$('#shopping-add-form [name="title"]')?.focus();},
   'login-form':async data=>finishLogin(await api('/api/auth/login',{method:'POST',body:JSON.stringify(data)})),
   'registration-form':async data=>finishLogin(await api('/api/auth/register',{method:'POST',body:JSON.stringify(data)})),
@@ -318,7 +323,6 @@ async function sync() {
 }
 setInterval(()=>{if(!document.hidden)sync();},15000);
 setInterval(()=>{if(!document.hidden && state.page==='shopping')sync();},5000);
-document.addEventListener('keydown',e=>{if(e.key==='Escape' && state.menuOpen && !modal.open){setMenu(false);$('.edge-toggle')?.focus();}});
 document.addEventListener('fullscreenchange',()=>render(true));
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(state.user && state.page==='calendar')render();},100);});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden && state.user){sync();loadWeather(true);}});

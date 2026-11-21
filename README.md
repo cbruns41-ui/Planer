@@ -26,11 +26,13 @@ Nach der Anmeldung fuehrt die Startseite mit grossen Kacheln zu Kalender, Essens
 
 ## Personen und Geburtstage
 
-Das Seitenmenü lässt sich auf allen Geräten mit dem kleinen Pfeil am linken Rand aus- und einklappen. Im Kalender startet es geschlossen. Die Kalenderansicht nutzt die verfügbare Bildschirmhöhe; Begrüßung, Fußzeile, untere Navigation und eine dauerhafte Tages-Seitenleiste entfallen dort. Tagesdetails erscheinen nach einem Tipp auf den Tag. Filter und Suche öffnen sich über den Filterknopf. Auf unterstützten Browsern kann zusätzlich die Vollbildfunktion verwendet werden.
+Das Seitenmenü lässt sich auf allen Geräten mit dem kleinen Pfeil am linken Rand aus- und einklappen. Es bleibt beim Seitenwechsel und beim erneuten Öffnen in der gewählten Stellung. Der Kalender nutzt die verfügbare Bildschirmhöhe: Tage stehen untereinander, jede Person hat eine eigene farbige Spalte. Gemeinsame Termine und Feiertage stehen unter **Alle zusammen**. Die Spaltenköpfe und das Datum bleiben beim Scrollen sichtbar. Auf kleineren Geräten lassen sich weitere Personen durch seitliches Wischen erreichen. Tagesdetails erscheinen nach einem Tipp auf das Datum. Filter und Suche öffnen sich über den Filterknopf.
 
 Ein Account kann mehrere Personen verwalten. Unter **Personen > Person hinzufügen** einen Vornamen und eine Farbe hinterlegen. Dafür sind keine weiteren Zugangsdaten nötig. Name und Farbe lassen sich nachträglich ändern; die vorhandenen Termine bleiben zugeordnet.
 
-Bei einem Termin unter **Für wen?** die Person auswählen. Ihr Vorname und ihre Farbe erscheinen auf der Startseite, in Terminlisten, im Tagesplan und auf den Einträgen des Monatskalenders. Gemeinsame Termine tragen die Markierung **Alle zusammen**. Auf kleinen Handys startet der Kalender mit der lesbaren Listenansicht; zur Monatsansicht kann jederzeit gewechselt werden.
+Bei einem Termin unter **Für wen?** die Person auswählen. Ihr Vorname und ihre Farbe erscheinen auf der Startseite, in Terminlisten und in ihrer Kalenderspalte. Das Plus in einem Kalenderfeld übernimmt Person und Datum direkt. Über den Stift am Spaltenkopf lassen sich Vorname und Farbe bearbeiten; **Alle Termine** öffnet die vollständige Übersicht dieser Person.
+
+Unter **Einstellungen > Dein Konto > Dein Vorname / Anzeigename** lässt sich der Name für die Begrüßung ändern. Der Login-Nutzername **Bruns** bleibt dabei erhalten. Die Namen der Kalenderpersonen werden separat unter **Eure Personen** oder direkt am Spaltenkopf gepflegt.
 
 Unter **Personen** eine Person antippen. Die Ansichten **Anstehend**, **Alle Termine** und **Vergangen** listen ihre Termine unabhängig vom gerade geöffneten Kalendermonat auf. Ein neuer Termin aus dieser Ansicht übernimmt die ausgewählte Person automatisch.
 

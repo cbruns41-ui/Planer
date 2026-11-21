@@ -204,6 +204,11 @@ async function api(req,res,url) {
  if (path === '/api/locations' && method === 'GET') { const q = text(url.searchParams.get('q'),80,true); return json(res,200,await external(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=de&format=json`,3600000)); }
  const user = session(req);
  if (path === '/api/me' && method === 'GET') return json(res,200,account(user));
+ if(path==='/api/account/profile' && method==='PUT') {
+  const b=await body(req),name=text(b.name,60,true);
+  db.prepare('UPDATE users SET name=? WHERE id=?').run(name,user.id);
+  return json(res,200,account({...user,name}));
+ }
  if(path==='/api/location' && method==='PUT') {
   const b=await body(req),name=text(b.name,80,true),latitude=b.latitude,longitude=b.longitude;
   if(typeof latitude!=='number' || typeof longitude!=='number' || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude)>90 || Math.abs(longitude)>180)throw new ApiError(400,'Ungültiger Standort.');

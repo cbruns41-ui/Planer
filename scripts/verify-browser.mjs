@@ -13,6 +13,7 @@ await mkdir(output, {recursive:true});
 const children = [];
 let cdp;
 const delay = ms => new Promise(r=>setTimeout(r,ms));
+async function viewport(metrics){await cdp.call('Emulation.setDeviceMetricsOverride',metrics);await delay(240);}
 function launch(command,args,env={}) {
  const child=spawn(command,args,{cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
  child.done=once(child,'exit');children.push(child);return child;
@@ -55,13 +56,13 @@ try {
  const targets=await (await fetch(`http://${host}/json/list`)).json();
  const ws=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);await once(ws,'open');
  cdp=new DevTools(ws);await cdp.call('Runtime.enable');await cdp.call('Page.enable');await cdp.call('Network.enable');
- await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1050,deviceScaleFactor:1,mobile:false});
+ await viewport({width:1440,height:1050,deviceScaleFactor:1,mobile:false});
  await cdp.call('Page.navigate',{url:base});
 
  await cdp.wait("!!document.querySelector('#login-form')");
  const overflow=()=>cdp.run('document.documentElement.scrollWidth>innerWidth');
  for(const width of [1440,1024,820,768,430,390,360,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});
+  await viewport({width,height:900,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await overflow(),false,'Login overflow '+width);
   await cdp.screenshot('login-'+width);
  }
@@ -71,6 +72,8 @@ try {
  await cdp.fill('#login-form [name="password"]','Test1234');await cdp.submit('#login-form');
  await cdp.wait("document.querySelectorAll('.app-tile').length===7");
  assert.ok(await cdp.run("document.querySelector('h1').textContent.includes('Bruns')"));
+ assert.equal(await cdp.run("document.querySelector('.edge-toggle').getAttribute('aria-expanded')"),'true');
+ await cdp.click('.edge-toggle');
  await cdp.wait('!!navigator.serviceWorker.controller');
  // Several profiles and their appointments are managed under this single login.
  await cdp.click('.app-tile[data-action="people"]');await cdp.wait("!!document.querySelector('.person-directory')");
@@ -104,7 +107,7 @@ try {
  await cdp.fill('#birthday-form [name="day"]',String(Number(currentDate.slice(8))));await cdp.fill('#birthday-form [name="month"]',String(Number(currentDate.slice(5,7))));await cdp.fill('#birthday-form [name="year"]','1995');
  assert.equal(await overflow(),false,'Geburtstagsformular bei 320px');await cdp.submit('#birthday-form');await cdp.wait("!document.querySelector('#modal').open");
  for(const width of [1440,1024,768,390,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await overflow(),false,'Personen overflow '+width);await cdp.screenshot('people-'+width);
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await overflow(),false,'Personen overflow '+width);await cdp.screenshot('people-'+width);
  }
  await cdp.click('a[href="#birthdays"]');await cdp.wait("document.querySelectorAll('.birthday-row').length===1");
  assert.ok(await cdp.run("document.querySelector('.birthday-spotlight').textContent.includes('HEUTE WIRD GEFEIERT')"));
@@ -114,7 +117,7 @@ try {
  await cdp.click('a[href="#birthdays"]');await cdp.wait("document.querySelectorAll('.birthday-row').length===3");
  await cdp.fill('#birthday-search','Oma');assert.equal(await cdp.run("document.querySelectorAll('.birthday-row').length"),1);await cdp.fill('#birthday-search','');
  for(const width of [1440,1024,768,390,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await overflow(),false,'Geburtstage overflow '+width);await cdp.screenshot('birthdays-'+width);
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await overflow(),false,'Geburtstage overflow '+width);await cdp.screenshot('birthdays-'+width);
  }
  await cdp.call('Page.reload');await cdp.wait("document.querySelectorAll('.birthday-row').length===3");
  const omaId=await cdp.run("[...document.querySelectorAll('.birthday-row')].find(el=>el.textContent.includes('Oma Erika')).dataset.id");
@@ -124,42 +127,69 @@ try {
  assert.ok(await cdp.run("[...document.querySelectorAll('.upcoming-panel .owner-badge')].some(el=>el.textContent.includes('Anna'))"));
  assert.ok(await cdp.run("[...document.querySelectorAll('.upcoming-panel .owner-badge')].some(el=>el.textContent.includes('Ben'))"));
  for(const width of [1440,1024,820,768,430,390,360,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await overflow(),false,'Home overflow '+width);
   const targets=await cdp.run("[...document.querySelectorAll('.app-tile')].map(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height};})");
   assert.ok(targets.every(t=>t.width>=130 && t.height>=180),'Gro?e Kacheln '+width);
   await cdp.screenshot('app-home-'+width);
  }
- await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
- await cdp.click('.app-tile[data-action="calendar"]');await cdp.wait("!!document.querySelector('.calendar-panel')");await cdp.click('[data-action="month-view"]');await cdp.wait("!!document.querySelector('.month-grid')");
- assert.equal(await cdp.run("document.querySelectorAll('.day-cell').length"),42);
+ await viewport({width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await cdp.click('.app-tile[data-action="calendar"]');await cdp.wait("!!document.querySelector('.person-calendar-grid')");
+ assert.equal(await cdp.run("document.querySelector('.edge-toggle').getAttribute('aria-expanded')"),'true','Navigation keeps the menu open');
+ await cdp.click('.edge-toggle');
+ assert.equal(await cdp.run("document.querySelectorAll('.planner-person-heading').length"),4);
+ assert.equal(await cdp.run("document.querySelector('.person-calendar-grid').tagName"),'TABLE');
+ assert.ok(await cdp.run("(()=>{const heads=[...document.querySelectorAll('.planner-person-heading')].map(el=>el.getBoundingClientRect());return heads.every((r,i)=>Math.abs(r.top-heads[0].top)<1 && (!i || r.left>=heads[i-1].right-1));})()"),'Names appear beside each other in the same table header');
+ assert.ok(await cdp.run("(()=>{const row=document.querySelector('.planner-row'),date=row.querySelector('.planner-date').getBoundingClientRect(),cells=[...row.querySelectorAll('.planner-day-person')].map(el=>el.getBoundingClientRect());return cells.every((r,i)=>Math.abs(r.top-date.top)<1 && r.left>=date.right-1 && (!i || r.left>=cells[i-1].right-1));})()"),'Each day is one table row with date on the left');
+ assert.ok(await cdp.run(`document.querySelector('.planner-day-person[data-person="${annaId}"] .planner-event')===null || [...document.querySelectorAll('.planner-day-person[data-person="${annaId}"] .planner-event')].every(el=>!el.textContent.includes('Ben: Training'))`));
+ assert.ok(await cdp.run(`[...document.querySelectorAll('.planner-day-person[data-person="${benId}"] .planner-event')].some(el=>el.textContent.includes('Ben: Training'))`));
  await cdp.click('[data-action="new-event"]');
  await cdp.fill('#event-form [name="title"]','Unser neuer App-Termin');await cdp.fill('#event-form [name="time"]','18:00');await cdp.fill('#event-form [name="endTime"]','19:00');
  assert.equal(await overflow(),false,'Mobile Terminformular');await cdp.screenshot('app-event-mobile');
  await cdp.submit('#event-form');await cdp.wait("!document.querySelector('#modal').open");
- await cdp.click('[data-action="list-view"]');
- assert.ok(await cdp.run("document.querySelector('.month-list').textContent.includes('Unser neuer App-Termin')"));
+ assert.ok(await cdp.run("document.querySelector('.person-calendar-grid').textContent.includes('Unser neuer App-Termin')"));
  await cdp.click('[data-action="calendar-options"]');await cdp.fill('#event-search','neuer App');await cdp.submit('#calendar-options-form');await cdp.wait("!document.querySelector('#modal').open");
- assert.ok(await cdp.run("document.querySelector('.month-list').textContent.includes('Unser neuer App-Termin')"));
- await cdp.click('[data-action="calendar-options"]');await cdp.fill('#event-search','');await cdp.submit('#calendar-options-form');await cdp.wait("!document.querySelector('#modal').open");await cdp.click('[data-action="month-view"]');
+ assert.ok(await cdp.run("document.querySelector('.person-calendar-grid').textContent.includes('Unser neuer App-Termin')"));
+ assert.ok(await cdp.run("![...document.querySelectorAll('.planner-event')].some(el=>el.textContent.includes('Ben: Training'))"));
+ await cdp.click('[data-action="calendar-options"]');await cdp.fill('#event-search','');await cdp.submit('#calendar-options-form');await cdp.wait("!document.querySelector('#modal').open");
+ await cdp.click(`.planner-person-heading[data-person="${benId}"] [data-action="edit-person"]`);
+ await cdp.fill('#person-form [name="name"]','Benjamin');await cdp.submit('#person-form');await cdp.wait("!document.querySelector('#modal').open");
+ assert.ok(await cdp.run(`document.querySelector('.planner-person-heading[data-person="${benId}"]').textContent.includes('Benjamin')`));
+ await cdp.click(`.planner-person-heading[data-person="${benId}"] [data-action="edit-person"]`);
+ await cdp.fill('#person-form [name="name"]','Ben');await cdp.submit('#person-form');await cdp.wait("!document.querySelector('#modal').open");
+ await cdp.click(`.planner-row[data-date="${currentDate}"] .planner-day-person[data-person="${annaId}"] [data-action="new-person-event"]`);
+ assert.equal(await cdp.run("document.querySelector('#event-form [name=personId]').value"),annaId);
+ assert.equal(await cdp.run("document.querySelector('#event-form [name=date]').value"),currentDate);await cdp.click('.modal-close');
  for(const width of [1440,1024,820,768,430,390,360,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await overflow(),false,'Calendar overflow '+width);await cdp.screenshot('app-calendar-'+width);
  }
  for(const [width,height] of [[1280,800],[1024,768],[1024,600],[820,1180],[768,1024],[390,844]]){
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await delay(160);
+  await viewport({width,height,deviceScaleFactor:1,mobile:true});await delay(160);
   assert.equal(await cdp.run("!!document.querySelector('.topbar,.page-heading,.mobile-nav,.day-panel,.app-footer')"),false,'Only calendar controls in focus view');
   assert.equal(await cdp.run("document.querySelector('.edge-toggle').getAttribute('aria-expanded')"),'false');
-  assert.ok(await cdp.run("document.querySelector('.month-grid').getBoundingClientRect().bottom<=innerHeight+1"),'Calendar fits viewport '+width+'x'+height);
+  assert.ok(await cdp.run("document.querySelector('.planner-scroll').getBoundingClientRect().bottom<=innerHeight+1"),'Calendar fits viewport '+width+'x'+height);
   assert.ok(await cdp.run("document.documentElement.scrollHeight<=innerHeight+1"),'No page scroll in calendar '+width+'x'+height);
-  assert.ok(await cdp.run("[...document.querySelectorAll('.calendar-event')].every(el=>{const r=el.getBoundingClientRect(),c=el.closest('.day-cell').getBoundingClientRect();return r.bottom<=c.bottom+1 && r.top>=c.top;})"),'Calendar entries are not cut off '+width+'x'+height);
+  assert.ok(await cdp.run("[...document.querySelectorAll('.planner-event')].every(el=>{const r=el.getBoundingClientRect(),c=el.closest('.planner-day-person').getBoundingClientRect();return r.bottom<=c.bottom+1 && r.top>=c.top;})"),'Calendar entries fit their rows '+width+'x'+height);
   await cdp.screenshot('focus-calendar-'+width+'x'+height);
  }
  await cdp.click('.edge-toggle');assert.equal(await cdp.run("document.querySelector('.edge-toggle').getAttribute('aria-expanded')"),'true');
  await delay(240);assert.ok(await cdp.run("Math.abs(document.querySelector('#app-sidebar').getBoundingClientRect().left)<1"),'Sidebar fully expands');
+ await viewport({width:1280,height:800,deviceScaleFactor:1,mobile:false});
+ await cdp.screenshot('calendar-table-menu-tablet');
+ assert.ok(await cdp.run("document.querySelector('.planner-scroll').getBoundingClientRect().left>=document.querySelector('#app-sidebar').getBoundingClientRect().right"),'Open tablet menu leaves calendar visible');
+ await cdp.run("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))");
+ assert.equal(await cdp.run("document.querySelector('.edge-toggle').getAttribute('aria-expanded')"),'true','Only the edge arrow closes the menu');
+ await cdp.call('Page.reload');await cdp.wait("!!document.querySelector('.person-calendar-grid')");
+ assert.equal(await cdp.run("document.querySelector('.edge-toggle').getAttribute('aria-expanded')"),'true','Open menu survives a reload in the calendar');
+ const pinned=await cdp.run("(()=>{const el=document.querySelector('.planner-scroll');el.scrollLeft=150;el.scrollTop=700;const h=document.querySelector('.planner-person-heading').getBoundingClientRect(),d=document.querySelector('.planner-date-corner').getBoundingClientRect(),r=el.getBoundingClientRect();return {top:h.top,cornerLeft:d.left,scrollerTop:r.top,scrollerLeft:r.left};})()");
+ assert.ok(Math.abs(pinned.top-pinned.scrollerTop)<=2,'Name headings stay visible while scrolling');
+ assert.ok(Math.abs(pinned.cornerLeft-pinned.scrollerLeft)<=2,'Date column stays on the left while scrolling');
+ await cdp.click('[data-action="today"]');
+ assert.ok(await cdp.run("Math.abs(document.querySelector('.planner-today').getBoundingClientRect().top-document.querySelector('.planner-person-heading').getBoundingClientRect().bottom)<=2"),'Today scrolls to the current day directly below the names');
  await cdp.screenshot('calendar-menu-open');
  await cdp.click('.edge-toggle');assert.equal(await cdp.run("document.querySelector('#app-sidebar').hasAttribute('inert')"),true);
- await cdp.click('.day-number[data-date="'+currentDate+'"]');await cdp.wait("!!document.querySelector('#calendar-day-modal')");
+ await cdp.click('.planner-date [data-date="'+currentDate+'"]');await cdp.wait("!!document.querySelector('#calendar-day-modal')");
  assert.ok(await cdp.run("document.querySelector('#calendar-day-modal').textContent.includes('Anna: Arzttermin')"));await cdp.click('.modal-close');
  await cdp.click('a[href="#shopping"]');await cdp.wait("!!document.querySelector('#shopping-add-form')");
  await cdp.fill('#shopping-add-form [name="title"]','Milch');await cdp.fill('#shopping-add-form [name="quantity"]','2 Liter');await cdp.fill('#shopping-add-form [name="personId"]',annaId);await cdp.submit('#shopping-add-form');
@@ -177,21 +207,24 @@ try {
  await cdp.wait("document.querySelector('.shopping-list').textContent.includes('Brot vom Handy')");
  assert.equal(await cdp.run("document.querySelector('#shopping-add-form [name=title]').value"),'Mein noch nicht gespeicherter Eintrag');await cdp.fill('#shopping-add-form [name="title"]','');
  for(const width of [1440,1024,768,390,320]){
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await overflow(),false,'Shopping list overflow '+width);await cdp.screenshot('shopping-'+width);
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await overflow(),false,'Shopping list overflow '+width);await cdp.screenshot('shopping-'+width);
  }
  await cdp.call('Page.reload');await cdp.wait("document.querySelector('.shopping-list')?.textContent.includes('3 Liter')");
- await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await viewport({width:390,height:844,deviceScaleFactor:1,mobile:true});
  await cdp.click('a[href="#meals"]');await cdp.wait("document.querySelectorAll('.meal-day').length===7");
  await cdp.click('.meal-slot[data-slot="dinner"]');
  await cdp.fill('#meal-form [name="title"]','Pasta mit Tomatensauce');await cdp.fill('#meal-form [name="note"]','Mit frischem Basilikum');await cdp.submit('#meal-form');
  await cdp.wait("!document.querySelector('#modal').open");
  assert.ok(await cdp.run("document.querySelector('.meal-plan').textContent.includes('Pasta mit Tomatensauce')"));
  for(const width of [1024,768,390,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await overflow(),false,'Meals overflow '+width);await cdp.screenshot('app-meals-'+width);
  }
  await cdp.call('Page.reload');await cdp.wait("document.querySelector('.meal-plan')?.textContent.includes('Pasta mit Tomatensauce')");
  await cdp.click('a[href="#settings"]');await cdp.wait("!!document.querySelector('#email-form')");
+ await cdp.fill('#profile-form [name="name"]','Christian');await cdp.submit('#profile-form');
+ await cdp.wait("document.querySelector('.profile-summary strong').textContent==='Christian'");
+ assert.ok(await cdp.run("document.querySelector('.profile-summary').textContent.includes('Nutzername: Bruns')"));
  await cdp.fill('#email-form [name="email"]','bruns-browser@example.test');await cdp.fill('#email-form [name="password"]','Test1234');
  await cdp.submit('#email-form');await cdp.wait("!!document.querySelector('#email-form .form-success').textContent");
  assert.ok(await cdp.run("document.querySelector('#email-form [name=email]').value==='bruns-browser@example.test'"));
@@ -203,7 +236,7 @@ try {
  assert.equal(await cdp.run("document.querySelector('#space-form [name=name]').value"),'Noch nicht gespeichert');
  await cdp.submit('#space-form');
  for(const width of [1024,768,390,320]) {
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});
+  await viewport({width,height:1000,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await overflow(),false,'Settings overflow '+width);await cdp.screenshot('app-settings-'+width);
  }
  await cdp.click('[data-action="change-password"]');
@@ -211,6 +244,7 @@ try {
  await cdp.wait("!!document.querySelector('#login-form')");
  await cdp.fill('#login-form [name="identifier"]','Bruns');await cdp.fill('#login-form [name="password"]','BrowserPasswort123');await cdp.submit('#login-form');
  await cdp.wait("document.querySelectorAll('.app-tile').length===7");
+ assert.ok(await cdp.run("document.querySelector('h1').textContent.includes('Christian')"),'Anzeigename bleibt nach erneutem Login erhalten');
  await cdp.click('.app-tile[data-action="weather"]');await cdp.wait("!!document.querySelector('.weather-hero')");
  assert.equal(await overflow(),false,'Weather overflow');await cdp.screenshot('app-weather-mobile');
  await cdp.click('a[href="#settings"]');await cdp.wait("!!document.querySelector('[data-action=logout]')");await cdp.click('[data-action="logout"]');
@@ -223,7 +257,7 @@ try {
  await cdp.call('Page.reload');await cdp.wait("!!document.querySelector('#login-form')");
  assert.equal(await cdp.run("!!document.querySelector('.app-tiles')"),false,'Keine privaten Inhalte nach Abmeldung offline');
  assert.deepEqual(cdp.errors,[],'JavaScript-Fehler im Browser');
- console.log('Browser checks passed: login, multiple people in one account, appointment ownership, all/past appointments, birthdays and recurrence, 320-1440 px, full-viewport calendar and collapsible menu, shared shopping with protected drafts, meals, email settings, password change, session restore and offline login. Screenshots: tmp/');
+ console.log('Browser checks passed: login, editable people and account name, appointment ownership, birthdays, 320-1440 px, calendar table with aligned day rows and person columns, pinned names/dates, persistent menu, shopping, meals, email, password, session restore and offline login. Screenshots: tmp/');
 
 } finally {
  if(cdp)cdp.ws.close();
